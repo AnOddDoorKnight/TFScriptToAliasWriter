@@ -27,6 +27,7 @@ public static class Program
 		for (int i = 0; i < strings.Length; i++)
 		{
 			string currentString = strings[i];
+			// Split the line via puncuation
 			List<StringBuilder> punctuationSplit = new() { new StringBuilder() };
 			for (int ii = 0; ii < currentString.Length; ii++)
 			{
@@ -47,11 +48,23 @@ public static class Program
 					stringBuilder = NewBuilder();
 				}
 				stringBuilder.Append($"{puncRemake[ii]} ");
+				// if the single sentence is too long then just split it
+				while (stringBuilder.Length > maxCharacterLimit)
+				{
+					string limiterString = stringBuilder.ToString();
+					splitSentences.Add(limiterString.Remove(maxCharacterLimit));
+					stringBuilder = NewBuilder();
+					stringBuilder.Append(limiterString.Substring(maxCharacterLimit));
+				}
 			}
 		}
+		StringBuilder NewBuilder() => new StringBuilder(maxCharacterLimit).Append("say ");
+		// Adding final line
 		if (stringBuilder.Length > 0)
 			splitSentences.Add(stringBuilder.ToString().Trim());
 
+		// Doing it all over again to allow aliases that have to be a max of 255
+		// - characters long, along with adding wait times in the middle
 		string fullStream = string.Join($"; wait {waitDelay}; ", splitSentences);
 		string[] resplit = fullStream.Split(';');
 		int maxAliasLimit = byte.MaxValue;
@@ -66,10 +79,17 @@ public static class Program
 			}
 			builderList[^1].Replace("[1]", $"{resplit[i]};[1]");
 		}
+		StringBuilder NewAliasBuilder(int currentIndex)
+		{
+			string subsequentBee = $"{aliasName}{currentIndex + 1}";
+			return new StringBuilder($"alias {aliasName}{currentIndex} \"[1]echo {subsequentBee};{subsequentBee}\"");
+		}
+		// Removing last alias call hack
 		string lastString = builderList[^1].ToString();
 		lastString = lastString.Remove(lastString.LastIndexOf('[')) + '"';
 		builderList[^1] = new(lastString);
 
+		// Finally creating it.
 		using (StreamWriter stream = new(File.Create(toPath)))
 		{
 			for (int i = 0; i < builderList.Count; i++)
@@ -80,11 +100,6 @@ public static class Program
 		Console.WriteLine("Succeeded! Press any key to continue.");
 		Console.ReadKey();
 
-		StringBuilder NewBuilder() => new StringBuilder(maxCharacterLimit).Append("say ");
-		StringBuilder NewAliasBuilder(int currentIndex)
-		{
-			string subsequentBee = $"{aliasName}{currentIndex + 1}";
-			return new StringBuilder($"alias {aliasName}{currentIndex} \"[1]echo {subsequentBee};{subsequentBee}\"");
-		}
+		
 	}
 }
